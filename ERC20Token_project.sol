@@ -5,30 +5,48 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract ERC20Token is ERC20 {
 
-    address private contractOwner;
-    uint256 public pointsPerTransaction;
+    address private organizer;
+    uint256 private totalDonations;
 
-    modifier onlyOwner() {
-        require(msg.sender == contractOwner, "you are not the owner");
+    mapping(address => uint256) private donations;
+
+    modifier onlyOrganizer() {
+        require(msg.sender == organizer, "Only the organizer can perform this action");
         _;
     }
 
-    constructor(uint256 initialSupply, uint256 _pointsPerTransaction) ERC20("LoyaltyToken", "LTY") {
+    constructor(uint256 initialSupply) ERC20("FundraiserToken", "FRT") {
         _mint(msg.sender, initialSupply);
-        contractOwner = msg.sender;
-        pointsPerTransaction = _pointsPerTransaction;
+        organizer = msg.sender;
     }
 
-    function earnPoints(address customer, uint256 transactionAmount) external onlyOwner {
-        uint256 points = (transactionAmount / 1 ether) * pointsPerTransaction;
-        _mint(customer, points);
+    function mintTokens(uint256 amount) external onlyOrganizer {
+        require(amount > 0, "Mint amount must be greater than zero");
+        _mint(organizer, amount);
     }
 
-    function redeemPoints(address customer, uint256 points) external onlyOwner {
-        _burn(customer, points);
+    function donateTokens(address to, uint256 amount) public {
+        require(to != address(0), "Cannot donate to the zero address");
+        require(amount > 0, "Donation amount must be greater than zero");
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance to donate");
+        
+        _transfer(msg.sender, to, amount);
+        donations[msg.sender] += amount;
+        totalDonations += amount;
     }
 
-    function updatePointsRate(uint256 newRate) external onlyOwner {
-        pointsPerTransaction = newRate;
+    function burnTokens(uint256 amount) public {
+        require(amount > 0, "Burn amount must be greater than zero");
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance to burn");
+        
+        _burn(msg.sender, amount);
+    }
+
+    function checkDonationHistory() public view returns (uint256) {
+        return donations[msg.sender];
+    }
+
+    function viewTotalDonations() public view onlyOrganizer returns (uint256) {
+        return totalDonations;
     }
 }
